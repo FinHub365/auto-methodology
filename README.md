@@ -1,197 +1,197 @@
 # Auto Methodology
 
-**Let AI run 100+ experiments overnight while you sleep.**
+**让 AI 在你睡觉时跑 100+ 次实验。**
 
-A meta-skill for Claude Code that turns any measurable goal into an autonomous optimization loop. Based on the pattern Andrej Karpathy used in [AutoResearch](https://github.com/karpathy/autoresearch) -- where a single AI agent ran 700 experiments and discovered optimizations that a world-class ML researcher missed.
+一个 Claude Code 元技能（meta-skill），能把任何可量化的目标变成自主优化循环。基于 Andrej Karpathy 在 [AutoResearch](https://github.com/karpathy/autoresearch) 中使用的模式——一个 AI agent 跑了 700 次实验，发现了连世界级 ML 研究者都遗漏的优化。
 
 ```
-Human writes program.md    AI runs experiments    AI evaluates    AI keeps winners
-        |                        |                     |                |
-        v                        v                     v                v
-   "Optimize X"  ──>  modify train.py  ──>  measure val_bpb  ──>  git commit / revert
-                            ^                                          |
-                            └──────────────────────────────────────────┘
-                                         loop forever
+人类写 program.md       AI 跑实验          AI 评估           AI 保留赢家
+       |                    |                 |                  |
+       v                    v                 v                  v
+  "优化 X"  ──>  修改 train.py  ──>  测量 val_bpb  ──>  git commit / revert
+                       ^                                        |
+                       └────────────────────────────────────────┘
+                                    永不停止
 ```
 
 ---
 
-## The Core Idea
+## 核心思想
 
-Every optimization problem -- no matter the domain -- can be reduced to **three primitives**:
+所有优化问题——无论什么领域——都能归结为**三原件**：
 
-| Primitive | What it is | Example |
-|-----------|-----------|---------|
-| **Editable Asset** | The one file the agent can modify | `train.py`, `queries.sql`, `prompts.md` |
-| **Scalar Metric** | A single number: better or worse, no ambiguity | `val_bpb`, `p95_latency_ms`, `lighthouse_score` |
-| **Time-boxed Cycle** | Fixed duration per experiment for fair comparison | 5 min wall-clock time |
+| 原件 | 是什么 | 示例 |
+|------|-------|------|
+| **可编辑资产** | agent 唯一能改的那个文件 | `train.py`、`queries.sql`、`prompts.md` |
+| **标量指标** | 一个数字：变好了还是变差了，没有歧义 | `val_bpb`、`p95_latency_ms`、`lighthouse_score` |
+| **时间限定循环** | 每次实验固定时长，确保公平比较 | 5 分钟壁钟时间 |
 
-Map your problem to these three, and the agent handles the rest -- proposing changes, measuring results, keeping wins, reverting losses, logging everything.
+把你的问题映射到这三个要素上，agent 负责剩下的一切——提出改动、测量结果、保留胜者、回滚败者、记录一切。
 
-## What This Skill Does
+## 这个技能做什么
 
-This is not a tool that optimizes something specific. It's a **tool that builds optimization tools**.
+它不是一个优化某个具体东西的工具。它是一个**制造优化工具的工具**。
 
-Tell it what you want to improve, and it generates:
-
-```
-auto-[your-domain]/
-  program.md          # Research charter: goals, constraints, rules
-  [editable-asset]    # The file the agent experiments on
-  evaluate.sh         # Immutable scoring logic
-  run_loop.sh         # Ratchet loop with timeout + logging
-  results.tsv         # Append-only experiment ledger
-```
-
-Then point any coding agent at `program.md` and let it run.
-
-## Real-World Results
-
-| Project | What was optimized | Experiments | Result |
-|---------|-------------------|-------------|--------|
-| Karpathy AutoResearch | LLM training efficiency | 700 | 11% faster training, discovered QK-Norm missing multiplier |
-| Shopify Liquid | Template rendering | ~100 | 53% faster rendering, 61% less memory |
-| SkyPilot (16 GPU parallel) | LLM training | 910 in 8hrs | Massive exploration at scale |
-
-## 6 Archetypes
-
-The skill matches your problem to the right loop pattern:
+告诉它你想改进什么，它会生成：
 
 ```
-AutoResearch    hypothesis ──> experiment ──> measure ──> keep/discard
-AutoBuild       code change ──> test/benchmark ──> keep/revert
-AutoSearch      search ──> filter ──> rank ──> synthesize
-AutoOperate     check state ──> classify ──> act ──> verify
-AutoContent     draft ──> score with rubric ──> revise ──> keep best
-AutoAnalysis    candidate explanation ──> test against evidence ──> promote strongest
+auto-[你的领域]/
+  program.md          # 研究纲领：目标、约束、规则
+  [可编辑资产]         # agent 在上面做实验的文件
+  evaluate.sh         # 不可变的评分逻辑
+  run_loop.sh         # 棘轮循环，带超时和日志
+  results.tsv         # 只追加的实验账本
 ```
 
-## 4-Surface Architecture
+然后把任意 coding agent 指向 `program.md`，让它跑就行了。
 
-Strict separation of concerns prevents the agent from gaming the system:
+## 真实案例
 
-```
-┌─────────────────────────────────────────────────┐
-│  PROGRAM SURFACE (human-controlled)             │
-│  program.md: goals, constraints, promotion rules│
-├─────────────────────────────────────────────────┤
-│  MUTABLE SURFACE (agent-controlled)             │
-│  train.py / queries.sql / prompts.md            │
-├─────────────────────────────────────────────────┤
-│  ORACLE SURFACE (immutable)                     │
-│  evaluate.sh, test data, scoring functions      │
-├─────────────────────────────────────────────────┤
-│  LEDGER SURFACE (append-only)                   │
-│  results.tsv: every run logged, wins and losses │
-└─────────────────────────────────────────────────┘
-```
+| 项目 | 优化对象 | 实验次数 | 成果 |
+|------|---------|---------|------|
+| Karpathy AutoResearch | LLM 训练效率 | 700 | 训练速度提升 11%，发现 QK-Norm 缺失乘法器 |
+| Shopify Liquid | 模板渲染引擎 | ~100 | 渲染速度提升 53%，内存减少 61% |
+| SkyPilot（16 GPU 并行） | LLM 训练 | 8小时 910 次 | 大规模并行探索 |
 
-The agent **cannot modify the oracle**. If it could, it would optimize the scoreboard instead of the actual problem.
+## 六大原型
 
-## The Ratchet
-
-Progress is monotonic. The Git-based ratchet ensures the codebase only moves forward:
+技能会将你的问题匹配到正确的循环模式：
 
 ```
-  metric improves + constraints met     ──>  keep commit (new baseline)
-  metric equal + solution simpler       ──>  keep commit
-  metric regresses                      ──>  git reset --hard HEAD~1
-  experiment crashes                    ──>  log error, revert, continue
-  evidence ambiguous                    ──>  mark "hold", move on
+AutoResearch    提出假设 ──> 跑实验 ──> 测量 ──> 保留/丢弃
+AutoBuild       改代码/配置 ──> 跑测试/基准 ──> 保留/回滚
+AutoSearch      搜索 ──> 过滤 ──> 排序 ──> 综合
+AutoOperate     检查状态 ──> 分类 ──> 行动 ──> 验证
+AutoContent     生成草稿 ──> 用标准打分 ──> 修订 ──> 保留最佳
+AutoAnalysis    候选解释 ──> 用证据检验 ──> 提升最强
 ```
 
-## 8 Domain Examples
+## 四面架构
 
-The skill ships with detailed examples for:
+严格的职责分离，防止 agent 钻系统漏洞：
 
-| Domain | Editable Asset | Metric | Cycle |
-|--------|---------------|--------|-------|
-| ML Training | `train.py` | val_bpb | 5 min |
-| Web Performance | `index.html` + inline assets | Lighthouse score | 2 min |
-| SQL Optimization | `queries.sql` | P95 query time (ms) | 1 min |
-| Prompt Engineering | `prompts.md` | F1 on labeled set | 3 min |
-| Build Optimization | `CMakeLists.txt` | Full build time (s) | 60 min |
-| Content/Copy | `landing_copy.md` | Composite quality score | 1 min |
-| API Performance | `handler.go` | P99 latency (ms) | 3 min |
-| LLM Inference | `serve_config.py` | tokens/sec (quality-gated) | 5 min |
+```
+┌──────────────────────────────────────────────────────┐
+│  纲领面 PROGRAM SURFACE（人类控制）                    │
+│  program.md：目标、约束、晋升规则                      │
+├──────────────────────────────────────────────────────┤
+│  可变面 MUTABLE SURFACE（Agent 控制）                  │
+│  train.py / queries.sql / prompts.md                 │
+├──────────────────────────────────────────────────────┤
+│  评判面 ORACLE SURFACE（不可变）                       │
+│  evaluate.sh、测试数据、评分函数                       │
+├──────────────────────────────────────────────────────┤
+│  账本面 LEDGER SURFACE（只追加）                       │
+│  results.tsv：每次运行都记录，无论成败                  │
+└──────────────────────────────────────────────────────┘
+```
 
-See [`references/domain-examples.md`](references/domain-examples.md) for full configs with evaluation scripts and exploration directions.
+Agent **不能修改评判面**。如果它能改，它就会去优化记分牌而不是真正的问题。
 
-## 5 Guardrails
+## 棘轮机制
 
-Hard rules that keep the loop honest:
+进步是单调的。基于 Git 的棘轮确保代码库只往前走：
 
-1. **Can't measure it? Don't optimize it.** Establish automated scoring before starting.
-2. **No moving the goalposts.** Metrics and promotion rules are locked before the loop starts.
-3. **Don't scale what doesn't work.** Single loop must be stable before adding parallelism or orchestration.
-4. **More autonomy =/= better methodology.** Human checkpoints at appropriate intervals based on risk.
-5. **No orchestration before validation.** One agent, one loop, one metric must produce value first.
+```
+  指标改善 + 约束满足       ──>  保留 commit（新基线）
+  指标持平 + 方案更简洁     ──>  保留 commit
+  指标退步                 ──>  git reset --hard HEAD~1
+  实验崩溃                 ──>  记录错误，回滚，继续
+  证据模糊                 ──>  标记 "hold"，继续下一个
+```
 
-## Installation
+## 八大领域示例
+
+技能内置了详细的领域适配方案：
+
+| 领域 | 可编辑资产 | 指标 | 循环时长 |
+|------|-----------|------|---------|
+| ML 训练 | `train.py` | val_bpb | 5 分钟 |
+| Web 性能 | `index.html` + 内联资源 | Lighthouse 分数 | 2 分钟 |
+| SQL 优化 | `queries.sql` | P95 查询时间 (ms) | 1 分钟 |
+| 提示词工程 | `prompts.md` | 标注集 F1 分数 | 3 分钟 |
+| 编译优化 | `CMakeLists.txt` | 完整构建时间 (秒) | 60 分钟 |
+| 内容文案 | `landing_copy.md` | 复合质量分 | 1 分钟 |
+| API 性能 | `handler.go` | P99 延迟 (ms) | 3 分钟 |
+| LLM 推理 | `serve_config.py` | tokens/sec（质量门控） | 5 分钟 |
+
+完整配置（含评估脚本和探索方向）见 [`references/domain-examples.md`](references/domain-examples.md)。
+
+## 五条护栏
+
+保证循环诚实运转的硬规则：
+
+1. **不可测则不优化。** 先建立自动化评分，再启动循环。
+2. **不可事后改定义。** 指标和晋升规则在循环开始前锁定。
+3. **跑不通就不要扩。** 单循环稳定后才能加并行或编排。
+4. **更多自主 ≠ 更好方法论。** 根据风险等级设置人类检查点。
+5. **先验证再编排。** 一个 agent、一个循环、一个指标先产出价值。
+
+## 安装
 
 ```bash
-# Clone and install
-git clone <this-repo>
+# 克隆并安装
+git clone https://github.com/FinHub365/auto-methodology.git
 claude skill install ./auto-methodology
 
-# Or copy the skill directory into your project's .claude/skills/
+# 或者直接把技能目录复制到项目的 .claude/skills/ 下
 cp -r auto-methodology /path/to/project/.claude/skills/
 ```
 
-## Usage
+## 使用方式
 
-Just describe what you want to optimize. The skill activates automatically:
+直接描述你想优化什么，技能会自动激活：
 
 ```
-> "I want to automatically optimize my SQL query performance"
-> "Help me set up an overnight experiment loop for prompt engineering"
-> "Build me an AutoBuild system for my API latency"
+> "我想自动优化我的 SQL 查询性能"
+> "帮我搭一个过夜跑实验的提示词优化循环"
+> "给我的 API 延迟建一套 AutoBuild 系统"
 ```
 
-The skill will walk you through:
+技能会引导你完成：
 
-1. Clarifying your goal and baseline
-2. Identifying the three primitives
-3. Choosing an archetype
-4. Generating all the files
-5. Pre-launch checklist
-6. Launch and monitoring guidance
+1. 明确目标和基线
+2. 识别三原件
+3. 选择原型
+4. 生成全部文件
+5. 启动前检查清单
+6. 启动与监控指南
 
-## Project Structure
+## 项目结构
 
 ```
 auto-methodology/
-  SKILL.md                          # The skill definition (core logic)
-  README.md                         # You are here
+  SKILL.md                          # 技能定义（核心逻辑）
+  README.md                         # 你在这里
   references/
-    program-template.md             # Fill-in-the-blank template for program.md
-    domain-examples.md              # 8 domain examples with full configs
+    program-template.md             # program.md 填空模板
+    domain-examples.md              # 8 个领域的完整配置示例
 ```
 
-## When NOT to Use This
+## 什么时候不该用
 
-Not every problem benefits from autonomous loops:
+不是所有问题都适合自主循环：
 
-- **Requires human creativity** -- design aesthetics, brand voice
-- **Evaluation is expensive** -- needs real user feedback or week-long A/B tests
-- **Tiny solution space** -- only 2-3 possible configurations
-- **High-risk mutations** -- production database schemas, critical infrastructure
+- **需要人类创意判断** —— 设计美感、品牌调性
+- **评估成本极高** —— 需要真实用户反馈或跑一周的 A/B 测试
+- **解空间极小** —— 只有两三种可能的配置
+- **高风险变更** —— 生产数据库 schema、核心基础设施
 
-## Philosophy
+## 设计哲学
 
-> "You're no longer writing the Python file. You're writing program.md -- you're programming the program."
-> -- Andrej Karpathy
+> "你不再直接编写 Python 文件了。你在编写 program.md —— 你在编程那个程序。"
+> —— Andrej Karpathy
 
-The paradigm shift:
+范式转变：
 
-| Era | Who does what |
-|-----|--------------|
-| Traditional | Human writes code, human tests, human improves |
-| Vibe Coding | Human describes, AI writes, human reviews |
-| **Auto** | **Human sets direction, AI experiments, AI evaluates, AI improves, human checks occasionally** |
+| 时代 | 谁做什么 |
+|------|---------|
+| 传统开发 | 人类写代码、人类测试、人类改进 |
+| Vibe Coding | 人类描述需求、AI 写代码、人类审查 |
+| **Auto** | **人类定方向、AI 自主实验、AI 自主评估、AI 自主改进、人类偶尔检查** |
 
-You don't need to know the optimal learning rate. You just need to know that "learning rate is worth exploring." The agent will find the optimum -- and things you never thought to try.
+你不需要知道最优学习率是多少。你只需要知道"学习率值得探索"。Agent 会找到那个最优值——以及你根本没想到去调的东西。
 
-## License
+## 许可证
 
 MIT
